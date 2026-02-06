@@ -15,11 +15,8 @@ jobs:
     strategy:
       matrix:
         include:
-          # macOS Intel (x86_64) - use macos-13 which runs on Intel
-          - os: macos-13
-            name: git-schedule-macos-x86_64
-          # macOS Apple Silicon (aarch64) - use macos-14 which runs on ARM
-          - os: macos-14
+          # macOS Apple Silicon (aarch64)
+          - os: macos-latest
             name: git-schedule-macos-aarch64
           # Linux x86_64
           - os: ubuntu-latest

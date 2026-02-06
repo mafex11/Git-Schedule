@@ -1,5 +1,5 @@
-# This formula should be placed in your homebrew-tap repository
-# Users install with: brew install yourusername/tap/git-schedule
+# Homebrew formula for git-schedule
+# Users install with: brew install mafex11/tap/git-schedule
 
 class GitSchedule < Formula
   desc "Schedule git commits for later - like delayed send for your code"
@@ -8,18 +8,13 @@ class GitSchedule < Formula
   license "MIT"
 
   on_macos do
-    if Hardware::CPU.arm?
-      url "https://github.com/mafex11/Git-Schedule/releases/download/v#{version}/git-schedule-macos-aarch64.tar.gz"
-      sha256 "REPLACE_WITH_ACTUAL_SHA256"
-    else
-      url "https://github.com/mafex11/Git-Schedule/releases/download/v#{version}/git-schedule-macos-x86_64.tar.gz"
-      sha256 "REPLACE_WITH_ACTUAL_SHA256"
-    end
+    url "https://github.com/mafex11/Git-Schedule/releases/download/v#{version}/git-schedule-macos-aarch64.tar.gz"
+    sha256 "REPLACE_MACOS_SHA256"
   end
 
   on_linux do
     url "https://github.com/mafex11/Git-Schedule/releases/download/v#{version}/git-schedule-linux-x86_64.tar.gz"
-    sha256 "REPLACE_WITH_ACTUAL_SHA256"
+    sha256 "REPLACE_LINUX_SHA256"
   end
 
   def install
