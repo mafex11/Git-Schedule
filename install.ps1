@@ -37,8 +37,24 @@ Remove-Item $zipFile
 # Add to PATH if not already there
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath -notlike "*$installDir*") {
-    Write-Host "Adding to PATH..."
+    Write-Host "Adding to user PATH..."
     [Environment]::SetEnvironmentVariable("Path", "$userPath;$installDir", "User")
+}
+
+# Also add to system PATH so it's picked up by all sessions
+$machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+if ($machinePath -notlike "*$installDir*") {
+    try {
+        Write-Host "Adding to system PATH..."
+        [Environment]::SetEnvironmentVariable("Path", "$machinePath;$installDir", "Machine")
+    } catch {
+        Write-Host "Note: Could not add to system PATH (requires admin). Run as Administrator if needed." -ForegroundColor Yellow
+    }
+}
+
+# Update current session PATH so it works immediately
+if ($env:Path -notlike "*$installDir*") {
+    $env:Path = "$env:Path;$installDir"
 }
 
 Write-Host ""
