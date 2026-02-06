@@ -106,10 +106,16 @@ async fn main() -> Result<()> {
 
     // Cleanup
     info!("Shutting down...");
-    let socket_path = config::socket_path()?;
-    if socket_path.exists() {
-        std::fs::remove_file(&socket_path)?;
+
+    // Remove socket file (Unix only)
+    #[cfg(unix)]
+    {
+        let socket_path = config::socket_path()?;
+        if socket_path.exists() {
+            std::fs::remove_file(&socket_path)?;
+        }
     }
+
     if pid_file.exists() {
         std::fs::remove_file(&pid_file)?;
     }

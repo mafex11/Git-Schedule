@@ -9,12 +9,12 @@ class GitSchedule < Formula
 
   on_macos do
     url "https://github.com/mafex11/Git-Schedule/releases/download/v#{version}/git-schedule-macos-aarch64.tar.gz"
-    sha256 "REPLACE_MACOS_SHA256"
+    sha256 "6c1893d22a9d0bac1a111fe6d11eb487e51228691191eb5aef6b23b0cce16017"
   end
 
   on_linux do
     url "https://github.com/mafex11/Git-Schedule/releases/download/v#{version}/git-schedule-linux-x86_64.tar.gz"
-    sha256 "REPLACE_LINUX_SHA256"
+    sha256 "024287e5d5af4457bc734973aef4667a0c639d4f1f51dbd1c8bb7e9e8b5d27b0"
   end
 
   def install

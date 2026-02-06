@@ -18,9 +18,15 @@ jobs:
           # macOS Apple Silicon (aarch64)
           - os: macos-latest
             name: git-schedule-macos-aarch64
+            artifact_ext: tar.gz
           # Linux x86_64
           - os: ubuntu-latest
             name: git-schedule-linux-x86_64
+            artifact_ext: tar.gz
+          # Windows x86_64
+          - os: windows-latest
+            name: git-schedule-windows-x86_64
+            artifact_ext: zip
 
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +37,8 @@ jobs:
       - name: Build
         run: cargo build --release
 
-      - name: Package
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
         run: |
           mkdir -p dist
           cp target/release/git-schedule dist/
@@ -39,11 +46,20 @@ jobs:
           cd dist
           tar -czvf ../${{ matrix.name }}.tar.gz *
 
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item target/release/git-schedule.exe dist/
+          Copy-Item target/release/git-schedule-daemon.exe dist/
+          Compress-Archive -Path dist/* -DestinationPath ${{ matrix.name }}.zip
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: ${{ matrix.name }}.tar.gz
+          path: ${{ matrix.name }}.${{ matrix.artifact_ext }}
 
   release:
     name: Create Release
@@ -60,7 +76,9 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/**/*.tar.gz
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

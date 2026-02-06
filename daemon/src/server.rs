@@ -3,50 +3,110 @@ use git_schedule_shared::{
     config, deserialize_request, serialize_response, DaemonStatus, Request, Response, Schedule,
     ScheduleStatus,
 };
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+#[cfg(unix)]
 use tokio::net::{UnixListener, UnixStream};
+#[cfg(windows)]
+use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info, warn};
 
 use crate::SharedState;
 
-/// Run the Unix socket server
+/// Run the IPC server (Unix socket on Unix, TCP on Windows)
 pub async fn run(state: SharedState) -> Result<()> {
-    let socket_path = config::socket_path()?;
+    #[cfg(unix)]
+    {
+        let socket_path = config::socket_path()?;
 
-    // Remove existing socket file
-    if socket_path.exists() {
-        std::fs::remove_file(&socket_path)?;
+        // Remove existing socket file
+        if socket_path.exists() {
+            std::fs::remove_file(&socket_path)?;
+        }
+
+        // Create listener
+        let listener = UnixListener::bind(&socket_path)
+            .with_context(|| format!("Failed to bind to {:?}", socket_path))?;
+
+        // Set socket permissions (owner only)
+        std::fs::set_permissions(&socket_path, std::fs::Permissions::from_mode(0o600))?;
+
+        info!("Server listening on {:?}", socket_path);
+
+        loop {
+            match listener.accept().await {
+                Ok((stream, _)) => {
+                    let state = state.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = handle_unix_client(stream, state).await {
+                            warn!("Client error: {}", e);
+                        }
+                    });
+                }
+                Err(e) => {
+                    error!("Accept error: {}", e);
+                }
+            }
+        }
     }
 
-    // Create listener
-    let listener = UnixListener::bind(&socket_path)
-        .with_context(|| format!("Failed to bind to {:?}", socket_path))?;
+    #[cfg(windows)]
+    {
+        let addr = config::daemon_address();
 
-    // Set socket permissions (owner only)
-    std::fs::set_permissions(&socket_path, std::fs::Permissions::from_mode(0o600))?;
+        let listener = TcpListener::bind(addr)
+            .await
+            .with_context(|| format!("Failed to bind to {}", addr))?;
 
-    info!("Server listening on {:?}", socket_path);
+        info!("Server listening on {}", addr);
 
-    loop {
-        match listener.accept().await {
-            Ok((stream, _)) => {
-                let state = state.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = handle_client(stream, state).await {
-                        warn!("Client error: {}", e);
-                    }
-                });
-            }
-            Err(e) => {
-                error!("Accept error: {}", e);
+        loop {
+            match listener.accept().await {
+                Ok((stream, _)) => {
+                    let state = state.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = handle_tcp_client(stream, state).await {
+                            warn!("Client error: {}", e);
+                        }
+                    });
+                }
+                Err(e) => {
+                    error!("Accept error: {}", e);
+                }
             }
         }
     }
 }
 
-/// Handle a single client connection
-async fn handle_client(stream: UnixStream, state: SharedState) -> Result<()> {
+/// Handle a single Unix socket client connection
+#[cfg(unix)]
+async fn handle_unix_client(stream: UnixStream, state: SharedState) -> Result<()> {
+    let (reader, mut writer) = stream.into_split();
+    let mut reader = BufReader::new(reader);
+    let mut line = String::new();
+
+    // Read request
+    reader.read_line(&mut line).await?;
+
+    if line.is_empty() {
+        return Ok(());
+    }
+
+    let request = deserialize_request(line.as_bytes())?;
+    let response = handle_request(request, state).await;
+
+    // Send response
+    let bytes = serialize_response(&response)?;
+    writer.write_all(&bytes).await?;
+    writer.flush().await?;
+
+    Ok(())
+}
+
+/// Handle a single TCP client connection (Windows)
+#[cfg(windows)]
+async fn handle_tcp_client(stream: TcpStream, state: SharedState) -> Result<()> {
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     let mut line = String::new();

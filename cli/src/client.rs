@@ -1,12 +1,15 @@
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Utc};
 use git_schedule_shared::{
     config, deserialize_response, serialize_request, DaemonStatus, Request, Response, Schedule,
     ScheduleId, ScheduleStatus,
 };
-use chrono::{DateTime, Utc};
 use std::path::PathBuf;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+#[cfg(unix)]
 use tokio::net::UnixStream;
+#[cfg(windows)]
+use tokio::net::TcpStream;
 use tokio::time::{timeout, Duration};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -18,23 +21,47 @@ pub struct Client;
 impl Client {
     /// Connect to the daemon (placeholder for API compatibility)
     pub async fn connect() -> Result<Self> {
-        // Just verify the socket exists
-        let socket_path = config::socket_path()?;
-        if !socket_path.exists() {
-            return Err(anyhow!("Daemon socket not found"));
+        #[cfg(unix)]
+        {
+            // Verify the socket exists on Unix
+            let socket_path = config::socket_path()?;
+            if !socket_path.exists() {
+                return Err(anyhow!("Daemon socket not found"));
+            }
         }
+
+        #[cfg(windows)]
+        {
+            // On Windows, try to connect to verify daemon is running
+            let addr = config::daemon_address();
+            timeout(CONNECT_TIMEOUT, TcpStream::connect(addr))
+                .await
+                .context("Connection timed out")?
+                .context("Daemon not running")?;
+        }
+
         Ok(Self)
     }
 
     /// Send a request and receive a response (creates new connection each time)
     async fn request(&mut self, req: Request) -> Result<Response> {
-        let socket_path = config::socket_path()?;
+        #[cfg(unix)]
+        let mut stream = {
+            let socket_path = config::socket_path()?;
+            timeout(CONNECT_TIMEOUT, UnixStream::connect(&socket_path))
+                .await
+                .context("Connection timed out")?
+                .with_context(|| format!("Failed to connect to daemon at {:?}", socket_path))?
+        };
 
-        // Create new connection for each request
-        let mut stream = timeout(CONNECT_TIMEOUT, UnixStream::connect(&socket_path))
-            .await
-            .context("Connection timed out")?
-            .with_context(|| format!("Failed to connect to daemon at {:?}", socket_path))?;
+        #[cfg(windows)]
+        let mut stream = {
+            let addr = config::daemon_address();
+            timeout(CONNECT_TIMEOUT, TcpStream::connect(addr))
+                .await
+                .context("Connection timed out")?
+                .with_context(|| format!("Failed to connect to daemon at {}", addr))?
+        };
 
         let bytes = serialize_request(&req)?;
 

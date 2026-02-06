@@ -48,7 +48,7 @@ pub async fn stop() -> Result<()> {
     // Force kill via PID
     let pid_file = config::pid_file()?;
     if pid_file.exists() {
-        let pid: i32 = std::fs::read_to_string(&pid_file)?.trim().parse()?;
+        let pid: u32 = std::fs::read_to_string(&pid_file)?.trim().parse()?;
 
         #[cfg(unix)]
         {
@@ -58,13 +58,23 @@ pub async fn stop() -> Result<()> {
                 .output();
         }
 
+        #[cfg(windows)]
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/PID", &pid.to_string()])
+                .output();
+        }
+
         let _ = std::fs::remove_file(&pid_file);
     }
 
-    // Clean up socket
-    let socket_path = config::socket_path()?;
-    if socket_path.exists() {
-        let _ = std::fs::remove_file(&socket_path);
+    // Clean up socket (Unix only)
+    #[cfg(unix)]
+    {
+        let socket_path = config::socket_path()?;
+        if socket_path.exists() {
+            let _ = std::fs::remove_file(&socket_path);
+        }
     }
 
     println!("{} Daemon stopped", style("✓").green());
@@ -99,12 +109,18 @@ pub fn start_daemon_process() -> Result<()> {
             .with_context(|| format!("Failed to start daemon: {}", daemon_path.display()))?;
     }
 
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+        const DETACHED_PROCESS: u32 = 0x00000008;
+
         Command::new(&daemon_path)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
+            .creation_flags(CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS)
             .spawn()
             .with_context(|| format!("Failed to start daemon: {}", daemon_path.display()))?;
     }
@@ -114,39 +130,76 @@ pub fn start_daemon_process() -> Result<()> {
 
 /// Find the daemon binary
 fn find_daemon_binary() -> Result<std::path::PathBuf> {
+    #[cfg(unix)]
+    let daemon_name = "git-schedule-daemon";
+    #[cfg(windows)]
+    let daemon_name = "git-schedule-daemon.exe";
+
     // Try same directory as CLI binary
     if let Ok(exe_path) = std::env::current_exe() {
         let exe_dir = exe_path.parent().unwrap();
-        let daemon_path = exe_dir.join("git-schedule-daemon");
+        let daemon_path = exe_dir.join(daemon_name);
         if daemon_path.exists() {
             return Ok(daemon_path);
         }
     }
 
-    // Try PATH
-    if let Ok(output) = Command::new("which").arg("git-schedule-daemon").output() {
+    // Try PATH (use "which" on Unix, "where" on Windows)
+    #[cfg(unix)]
+    let path_cmd = "which";
+    #[cfg(windows)]
+    let path_cmd = "where";
+
+    if let Ok(output) = Command::new(path_cmd).arg(daemon_name).output() {
         if output.status.success() {
             let path = String::from_utf8(output.stdout)?;
-            return Ok(std::path::PathBuf::from(path.trim()));
+            // On Windows, "where" may return multiple paths, take the first one
+            let first_path = path.lines().next().unwrap_or("").trim();
+            if !first_path.is_empty() {
+                return Ok(std::path::PathBuf::from(first_path));
+            }
         }
     }
 
     // Try cargo target directory (for development)
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let dev_path = std::path::Path::new(manifest_dir)
-        .parent()
-        .unwrap()
-        .join("target/debug/git-schedule-daemon");
-    if dev_path.exists() {
-        return Ok(dev_path);
+
+    #[cfg(unix)]
+    {
+        let dev_path = std::path::Path::new(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target/debug/git-schedule-daemon");
+        if dev_path.exists() {
+            return Ok(dev_path);
+        }
+
+        let release_path = std::path::Path::new(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target/release/git-schedule-daemon");
+        if release_path.exists() {
+            return Ok(release_path);
+        }
     }
 
-    let release_path = std::path::Path::new(manifest_dir)
-        .parent()
-        .unwrap()
-        .join("target/release/git-schedule-daemon");
-    if release_path.exists() {
-        return Ok(release_path);
+    #[cfg(windows)]
+    {
+        let dev_path = std::path::Path::new(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target\\debug\\git-schedule-daemon.exe");
+        if dev_path.exists() {
+            return Ok(dev_path);
+        }
+
+        let release_path = std::path::Path::new(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target\\release\\git-schedule-daemon.exe");
+        if release_path.exists() {
+            return Ok(release_path);
+        }
     }
 
     Err(anyhow!(

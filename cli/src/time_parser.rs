@@ -164,6 +164,7 @@ pub fn format_absolute(dt: DateTime<Utc>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Timelike;
 
     #[test]
     fn test_parse_relative_hours() {

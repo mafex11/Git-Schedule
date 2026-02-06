@@ -7,10 +7,25 @@ pub const MAX_SCHEDULES: usize = 10;
 /// Maximum schedule time in hours
 pub const MAX_SCHEDULE_HOURS: i64 = 24;
 
-/// Get the base configuration directory (~/.git-schedule)
+/// TCP port for Windows IPC (Unix uses socket file)
+#[cfg(windows)]
+pub const DAEMON_PORT: u16 = 7392;
+
+/// Get the base configuration directory
+/// - Unix: ~/.git-schedule
+/// - Windows: %LOCALAPPDATA%\git-schedule
 pub fn base_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir().context("Could not find home directory")?;
-    Ok(home.join(".git-schedule"))
+    #[cfg(unix)]
+    let base = dirs::home_dir()
+        .context("Could not find home directory")?
+        .join(".git-schedule");
+
+    #[cfg(windows)]
+    let base = dirs::data_local_dir()
+        .context("Could not find local data directory")?
+        .join("git-schedule");
+
+    Ok(base)
 }
 
 /// Get the schedules.json file path
@@ -33,9 +48,16 @@ pub fn pid_file() -> Result<PathBuf> {
     Ok(base_dir()?.join("daemon.pid"))
 }
 
-/// Get the Unix socket path for IPC
+/// Get the Unix socket path for IPC (Unix only)
+#[cfg(unix)]
 pub fn socket_path() -> Result<PathBuf> {
     Ok(base_dir()?.join("daemon.sock"))
+}
+
+/// Get the TCP address for daemon communication (Windows only)
+#[cfg(windows)]
+pub fn daemon_address() -> std::net::SocketAddr {
+    std::net::SocketAddr::from(([127, 0, 0, 1], DAEMON_PORT))
 }
 
 /// Ensure all config directories exist
@@ -55,6 +77,9 @@ mod tests {
     #[test]
     fn test_base_dir() {
         let dir = base_dir().unwrap();
+        #[cfg(unix)]
         assert!(dir.ends_with(".git-schedule"));
+        #[cfg(windows)]
+        assert!(dir.ends_with("git-schedule"));
     }
 }

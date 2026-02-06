@@ -1,18 +1,28 @@
 use anyhow::Result;
 use console::style;
+#[cfg(unix)]
 use git_schedule_shared::config;
 
 use crate::client::Client;
 use crate::time_parser::{format_absolute, format_relative};
 
 pub async fn run() -> Result<()> {
-    let socket_path = config::socket_path()?;
-
     println!("{}", style("git-schedule Status").bold());
     println!();
 
-    // Check if daemon is running
-    if !socket_path.exists() {
+    // Check if daemon appears to be available
+    // On Unix, check if socket file exists
+    // On Windows, we just try to connect (no socket file)
+    #[cfg(unix)]
+    let daemon_appears_available = {
+        let socket_path = config::socket_path()?;
+        socket_path.exists()
+    };
+
+    #[cfg(windows)]
+    let daemon_appears_available = true; // Always try to connect on Windows
+
+    if !daemon_appears_available {
         println!("{} Daemon not running", style("●").red());
         println!();
         println!(

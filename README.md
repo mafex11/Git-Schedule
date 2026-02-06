@@ -29,11 +29,26 @@ git-schedule "feat: add awesome feature" --in 2h
 
 ## Installation
 
-### From Source (requires Rust)
+### macOS / Linux
+
+#### From Releases
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/mafex11/Git-Schedule/releases):
+
+- **macOS (Apple Silicon):** `git-schedule-macos-aarch64.tar.gz`
+- **Linux (x86_64):** `git-schedule-linux-x86_64.tar.gz`
+
+```bash
+# Extract and install (example for macOS)
+tar -xzf git-schedule-macos-aarch64.tar.gz
+sudo mv git-schedule git-schedule-daemon /usr/local/bin/
+```
+
+#### From Source (requires Rust)
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/git-schedule.git
+git clone https://github.com/mafex11/git-schedule.git
 cd git-schedule
 
 # Build release binaries
@@ -46,6 +61,24 @@ cargo install --path daemon
 # Or copy manually
 cp target/release/git-schedule /usr/local/bin/
 cp target/release/git-schedule-daemon /usr/local/bin/
+```
+
+### Windows
+
+1. Download `git-schedule-windows-x86_64.zip` from [GitHub Releases](https://github.com/mafex11/Git-Schedule/releases)
+2. Extract to a folder (e.g., `C:\Program Files\git-schedule\`)
+3. Add that folder to your PATH:
+   - Open System Properties > Advanced > Environment Variables
+   - Under "User variables", edit `Path` and add your folder
+4. Open a new terminal and verify: `git-schedule --help`
+
+Or build from source with Rust:
+
+```powershell
+git clone https://github.com/mafex11/git-schedule.git
+cd git-schedule
+cargo build --release
+# Copy target\release\git-schedule.exe and git-schedule-daemon.exe to your PATH
 ```
 
 ### Verify Installation
@@ -208,9 +241,12 @@ git-schedule daemon restart  # Restart the daemon
 
 ### Storage
 
-All data is stored in `~/.git-schedule/`:
+All data is stored in:
+- **macOS/Linux:** `~/.git-schedule/`
+- **Windows:** `%LOCALAPPDATA%\git-schedule\`
 
 ```
+# Unix
 ~/.git-schedule/
 ├── schedules.json      # Schedule metadata
 ├── patches/            # Captured diffs
@@ -219,6 +255,14 @@ All data is stored in `~/.git-schedule/`:
 │   └── daemon.log.2024-01-15
 ├── daemon.pid          # Daemon process ID
 └── daemon.sock         # Unix socket for IPC
+
+# Windows
+%LOCALAPPDATA%\git-schedule\
+├── schedules.json
+├── patches\
+├── logs\
+└── daemon.pid
+# (Windows uses TCP localhost:7392 for IPC instead of socket)
 ```
 
 ## Configuration
@@ -299,8 +343,13 @@ cat ~/.git-schedule/logs/daemon.log.*
 ### Reset Everything
 
 ```bash
+# macOS/Linux
 git-schedule daemon stop
 rm -rf ~/.git-schedule
+
+# Windows (PowerShell)
+git-schedule daemon stop
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\git-schedule"
 ```
 
 ## Development
