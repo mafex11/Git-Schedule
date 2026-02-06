@@ -318,13 +318,17 @@ All data is stored in:
 | `git-schedule "msg" --in TIME` | Schedule commit in relative time |
 | `git-schedule "msg" --at TIME` | Schedule commit at absolute time |
 | `git-schedule "msg" --in TIME --push` | Schedule commit + push |
+| `git-schedule now "msg"` | Commit immediately |
 | `git-schedule list` | List pending schedules |
 | `git-schedule status` | Show daemon status and next commit |
 | `git-schedule show ID` | View scheduled diff |
 | `git-schedule edit ID [options]` | Edit message or time |
 | `git-schedule cancel ID` | Cancel a schedule |
+| `git-schedule undo` | Cancel the most recent schedule |
+| `git-schedule clear` | Cancel all pending schedules |
 | `git-schedule failed` | List failed/missed commits |
 | `git-schedule retry ID` | Re-stage files from failed commit |
+| `git-schedule stats` | Show history of completed commits |
 | `git-schedule daemon start` | Start daemon manually |
 | `git-schedule daemon stop` | Stop daemon |
 | `git-schedule daemon restart` | Restart daemon |

@@ -88,6 +88,25 @@ enum Commands {
         #[command(subcommand)]
         action: DaemonAction,
     },
+
+    /// Commit staged changes immediately
+    Now {
+        /// Commit message
+        message: String,
+
+        /// Push to remote after commit
+        #[arg(long, short)]
+        push: bool,
+    },
+
+    /// Cancel all pending scheduled commits
+    Clear,
+
+    /// Cancel the most recently scheduled commit
+    Undo,
+
+    /// Show history of completed commits
+    Stats,
 }
 
 #[derive(Subcommand)]
@@ -129,6 +148,10 @@ async fn main() -> Result<()> {
             DaemonAction::Stop => commands::daemon::stop().await,
             DaemonAction::Restart => commands::daemon::restart().await,
         },
+        Some(Commands::Now { message, push }) => commands::now::run(message, push).await,
+        Some(Commands::Clear) => commands::clear::run().await,
+        Some(Commands::Undo) => commands::undo::run().await,
+        Some(Commands::Stats) => commands::stats::run().await,
 
         // Direct schedule command: git-schedule "message" --in 2h
         None => {

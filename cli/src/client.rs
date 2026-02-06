@@ -216,6 +216,39 @@ impl Client {
             _ => Err(anyhow!("Unexpected response")),
         }
     }
+
+    /// Clear all pending schedules
+    pub async fn clear_all(&mut self) -> Result<usize> {
+        let req = Request::ClearAll;
+
+        match self.request(req).await? {
+            Response::Count(count) => Ok(count),
+            Response::Error { message } => Err(anyhow!(message)),
+            _ => Err(anyhow!("Unexpected response")),
+        }
+    }
+
+    /// Get the most recently created pending schedule
+    pub async fn get_most_recent(&mut self) -> Result<Schedule> {
+        let req = Request::GetMostRecent;
+
+        match self.request(req).await? {
+            Response::Schedule(schedule) => Ok(schedule),
+            Response::Error { message } => Err(anyhow!(message)),
+            _ => Err(anyhow!("Unexpected response")),
+        }
+    }
+
+    /// Get completed schedules (for stats)
+    pub async fn get_completed(&mut self, limit: usize) -> Result<Vec<Schedule>> {
+        let req = Request::GetCompleted { limit };
+
+        match self.request(req).await? {
+            Response::Schedules(schedules) => Ok(schedules),
+            Response::Error { message } => Err(anyhow!(message)),
+            _ => Err(anyhow!("Unexpected response")),
+        }
+    }
 }
 
 /// Check if daemon is running

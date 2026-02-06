@@ -194,4 +194,58 @@ impl Storage {
 
         Ok(count)
     }
+
+    /// Clear all pending schedules, returns count of cleared
+    pub fn clear_all_pending(&mut self) -> Result<usize> {
+        let ids_to_remove: Vec<String> = self
+            .schedules
+            .values()
+            .filter(|s| s.status == ScheduleStatus::Pending)
+            .map(|s| s.id.as_str().to_string())
+            .collect();
+
+        let count = ids_to_remove.len();
+
+        for id in ids_to_remove {
+            if let Some(schedule) = self.schedules.remove(&id) {
+                // Delete the patch file
+                if schedule.patch_file.exists() {
+                    let _ = std::fs::remove_file(&schedule.patch_file);
+                }
+            }
+        }
+
+        if count > 0 {
+            self.save()?;
+        }
+
+        Ok(count)
+    }
+
+    /// Get the most recently created pending schedule
+    pub fn get_most_recent_pending(&self) -> Option<&Schedule> {
+        self.schedules
+            .values()
+            .filter(|s| s.status == ScheduleStatus::Pending)
+            .max_by_key(|s| s.created_at)
+    }
+
+    /// Get completed schedules, sorted by completion time (most recent first)
+    pub fn get_completed(&self, limit: usize) -> Vec<&Schedule> {
+        let mut completed: Vec<&Schedule> = self
+            .schedules
+            .values()
+            .filter(|s| s.status == ScheduleStatus::Completed)
+            .collect();
+
+        // Sort by scheduled_at descending (most recent first)
+        completed.sort_by(|a, b| b.scheduled_at.cmp(&a.scheduled_at));
+
+        completed.into_iter().take(limit).collect()
+    }
+
+    /// Count completed schedules
+    pub fn count_completed(&self) -> usize {
+        self.count_by_status(ScheduleStatus::Completed)
+    }
 }

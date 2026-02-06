@@ -296,5 +296,35 @@ async fn handle_request(request: Request, state: SharedState) -> Response {
             // Signal shutdown - the main loop will handle this
             std::process::exit(0);
         }
+
+        Request::ClearAll => {
+            let mut state = state.write().await;
+            match state.storage.clear_all_pending() {
+                Ok(count) => {
+                    info!("Cleared {} pending schedules", count);
+                    Response::Count(count)
+                }
+                Err(e) => Response::error(format!("Failed to clear schedules: {}", e)),
+            }
+        }
+
+        Request::GetMostRecent => {
+            let state = state.read().await;
+            match state.storage.get_most_recent_pending() {
+                Some(schedule) => Response::Schedule(schedule.clone()),
+                None => Response::error("No pending schedules"),
+            }
+        }
+
+        Request::GetCompleted { limit } => {
+            let state = state.read().await;
+            let completed: Vec<Schedule> = state
+                .storage
+                .get_completed(limit)
+                .into_iter()
+                .cloned()
+                .collect();
+            Response::Schedules(completed)
+        }
     }
 }

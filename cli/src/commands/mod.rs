@@ -1,9 +1,13 @@
 pub mod cancel;
+pub mod clear;
 pub mod daemon;
 pub mod edit;
 pub mod failed;
 pub mod list;
+pub mod now;
 pub mod retry;
 pub mod schedule;
 pub mod show;
+pub mod stats;
 pub mod status;
+pub mod undo;

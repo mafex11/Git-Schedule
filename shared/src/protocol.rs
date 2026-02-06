@@ -44,6 +44,15 @@ pub enum Request {
     Shutdown,
     /// Ping to check if daemon is alive
     Ping,
+    /// Cancel all pending schedules
+    ClearAll,
+    /// Get the most recently created pending schedule
+    GetMostRecent,
+    /// Get completed schedules (for stats)
+    GetCompleted {
+        /// Maximum number of completed schedules to return
+        limit: usize,
+    },
 }
 
 /// Response from daemon to CLI
@@ -64,6 +73,8 @@ pub enum Response {
     Pong,
     /// Schedule created, returns the new schedule
     Created(Schedule),
+    /// Count of items affected
+    Count(usize),
 }
 
 impl Response {

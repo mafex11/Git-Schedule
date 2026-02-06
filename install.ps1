@@ -57,6 +57,12 @@ Write-Host @"
        Schedule your commits like a pro~
 "@ -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  Restart your terminal, then run:" -ForegroundColor White
-Write-Host "  git-schedule --help" -ForegroundColor Yellow
+Write-Host "  Quick start:" -ForegroundColor White
+Write-Host "    git add myfile.rs" -ForegroundColor Gray
+Write-Host "    git-schedule `"feat: my commit`" --in 2h" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  The daemon starts automatically when you schedule a commit." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Restart your terminal, then run: " -ForegroundColor White -NoNewline
+Write-Host "git-schedule --help" -ForegroundColor Yellow
 Write-Host ""
