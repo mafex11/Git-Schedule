@@ -60,6 +60,11 @@ pub fn daemon_address() -> std::net::SocketAddr {
     std::net::SocketAddr::from(([127, 0, 0, 1], DAEMON_PORT))
 }
 
+/// Get the update check cache file path
+pub fn update_check_file() -> Result<PathBuf> {
+    Ok(base_dir()?.join("update-check.json"))
+}
+
 /// Ensure all config directories exist
 pub fn ensure_dirs() -> Result<()> {
     let dirs = [base_dir()?, patches_dir()?, logs_dir()?];

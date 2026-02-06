@@ -3,6 +3,7 @@ mod commands;
 mod git;
 mod interactive;
 mod time_parser;
+mod update;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -122,6 +123,8 @@ enum DaemonAction {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    update::check_for_update();
 
     match cli.command {
         // Subcommands

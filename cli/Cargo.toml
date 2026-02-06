@@ -26,3 +26,5 @@ uuid.workspace = true
 
 regex = "1"
 dirs = "5"
+ureq.workspace = true
+semver.workspace = true
