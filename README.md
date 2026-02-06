@@ -65,14 +65,20 @@ cp target/release/git-schedule-daemon /usr/local/bin/
 
 ### Windows
 
+**One-liner install (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/mafex11/git-schedule/main/install.ps1 | iex
+```
+
+**Or manually:**
+
 1. Download `git-schedule-windows-x86_64.zip` from [GitHub Releases](https://github.com/mafex11/Git-Schedule/releases)
 2. Extract to a folder (e.g., `C:\Program Files\git-schedule\`)
-3. Add that folder to your PATH:
-   - Open System Properties > Advanced > Environment Variables
-   - Under "User variables", edit `Path` and add your folder
+3. Add that folder to your PATH
 4. Open a new terminal and verify: `git-schedule --help`
 
-Or build from source with Rust:
+**Or build from source with Rust:**
 
 ```powershell
 git clone https://github.com/mafex11/git-schedule.git
