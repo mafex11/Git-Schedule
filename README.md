@@ -4,7 +4,7 @@ Schedule git commits for later. Like "delayed send" for your code.
 
 ```bash
 git add feature.rs
-git-schedule "feat: add awesome feature" --in 2h
+git schedule "feat: add awesome feature" --in 2h
 # ✓ Scheduled commit for 3:00 PM (in 2 hours)
 # Files are captured and unstaged. Commit happens automatically later.
 ```
@@ -82,7 +82,7 @@ irm https://raw.githubusercontent.com/mafex11/git-schedule/main/install.ps1 | ie
 1. Download `git-schedule-windows-x86_64.zip` from [GitHub Releases](https://github.com/mafex11/Git-Schedule/releases)
 2. Extract to a folder (e.g., `C:\Program Files\git-schedule\`)
 3. Add that folder to your PATH
-4. Open a new terminal and verify: `git-schedule --help`
+4. Open a new terminal and verify: `git schedule --help`
 
 **Or build from source with Rust:**
 
@@ -96,8 +96,8 @@ cargo build --release
 ### Verify Installation
 
 ```bash
-git-schedule --version
-git-schedule --help
+git schedule --version
+git schedule --help
 ```
 
 After installation, you'll be greeted by:
@@ -124,7 +124,7 @@ After installation, you'll be greeted by:
 git add src/feature.rs
 
 # 2. Schedule the commit
-git-schedule "feat: add new feature" --in 2h
+git schedule "feat: add new feature" --in 2h
 
 # 3. That's it! Files are captured and will be committed in 2 hours
 #    You can continue working - the staged files are now unstaged
@@ -136,25 +136,25 @@ git-schedule "feat: add new feature" --in 2h
 
 ```bash
 # Relative time
-git-schedule "commit message" --in 30m      # in 30 minutes
-git-schedule "commit message" --in 2h       # in 2 hours
-git-schedule "commit message" --in 1h30m    # in 1 hour 30 minutes
+git schedule "commit message" --in 30m      # in 30 minutes
+git schedule "commit message" --in 2h       # in 2 hours
+git schedule "commit message" --in 1h30m    # in 1 hour 30 minutes
 
 # Absolute time
-git-schedule "commit message" --at 9am      # at 9:00 AM today (or tomorrow if passed)
-git-schedule "commit message" --at 9:30am   # at 9:30 AM
-git-schedule "commit message" --at 14:00    # at 2:00 PM (24-hour format)
-git-schedule "commit message" --at "2:30 PM"
+git schedule "commit message" --at 9am      # at 9:00 AM today (or tomorrow if passed)
+git schedule "commit message" --at 9:30am   # at 9:30 AM
+git schedule "commit message" --at 14:00    # at 2:00 PM (24-hour format)
+git schedule "commit message" --at "2:30 PM"
 
 # With auto-push
-git-schedule "feat: ready to ship" --in 1h --push
+git schedule "feat: ready to ship" --in 1h --push
 ```
 
 ### View Scheduled Commits
 
 ```bash
 # List all pending commits
-git-schedule list
+git schedule list
 
 # Example output:
 # Scheduled Commits
@@ -168,7 +168,7 @@ git-schedule list
 ### Check Status
 
 ```bash
-git-schedule status
+git schedule status
 
 # Example output:
 # git-schedule Status
@@ -188,7 +188,7 @@ git-schedule status
 ### View a Scheduled Diff
 
 ```bash
-git-schedule show a1b2c3d4
+git schedule show a1b2c3d4
 
 # Shows the full diff that will be committed
 ```
@@ -197,20 +197,20 @@ git-schedule show a1b2c3d4
 
 ```bash
 # Change the message
-git-schedule edit a1b2c3d4 --message "feat: better message"
+git schedule edit a1b2c3d4 --message "feat: better message"
 
 # Reschedule the time
-git-schedule edit a1b2c3d4 --in 3h
-git-schedule edit a1b2c3d4 --at 5pm
+git schedule edit a1b2c3d4 --in 3h
+git schedule edit a1b2c3d4 --at 5pm
 
 # Change both
-git-schedule edit a1b2c3d4 --message "new message" --in 4h
+git schedule edit a1b2c3d4 --message "new message" --in 4h
 ```
 
 ### Cancel a Schedule
 
 ```bash
-git-schedule cancel a1b2c3d4
+git schedule cancel a1b2c3d4
 # ✓ Cancelled schedule a1b2c3d4
 ```
 
@@ -220,12 +220,12 @@ If a commit fails (e.g., branch was deleted, merge conflict), it moves to the fa
 
 ```bash
 # View failed commits
-git-schedule failed
+git schedule failed
 
 # Retry a failed commit (re-stages the files so you can fix and reschedule)
-git-schedule retry a1b2c3d4
+git schedule retry a1b2c3d4
 # ✓ Files from schedule a1b2c3d4 have been re-staged
-# Run: git-schedule "message" --in <time>
+# Run: git schedule "message" --in <time>
 ```
 
 ### Daemon Management
@@ -233,9 +233,9 @@ git-schedule retry a1b2c3d4
 The daemon starts automatically when you schedule something. Manual control:
 
 ```bash
-git-schedule daemon start    # Start the daemon
-git-schedule daemon stop     # Stop the daemon
-git-schedule daemon restart  # Restart the daemon
+git schedule daemon start    # Start the daemon
+git schedule daemon stop     # Stop the daemon
+git schedule daemon restart  # Restart the daemon
 ```
 
 ## How It Works
@@ -243,7 +243,7 @@ git-schedule daemon restart  # Restart the daemon
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  git add file.rs                                            │
-│  git-schedule "message" --in 2h                             │
+│  git schedule "message" --in 2h                             │
 └─────────────────────┬───────────────────────────────────────┘
                       │
                       ▼
@@ -309,29 +309,29 @@ All data is stored in:
 | Branch is deleted before commit | Commit fails, moved to failed queue with error |
 | You're on a different branch | Commit fails (branch mismatch), moved to failed queue |
 | Merge conflict when applying patch | Commit fails, files re-staged for manual resolution |
-| Daemon crashes | Restarts automatically on next `git-schedule` command |
+| Daemon crashes | Restarts automatically on next `git schedule` command |
 
 ## Command Reference
 
 | Command | Description |
 |---------|-------------|
-| `git-schedule "msg" --in TIME` | Schedule commit in relative time |
-| `git-schedule "msg" --at TIME` | Schedule commit at absolute time |
-| `git-schedule "msg" --in TIME --push` | Schedule commit + push |
-| `git-schedule now "msg"` | Commit immediately |
-| `git-schedule list` | List pending schedules |
-| `git-schedule status` | Show daemon status and next commit |
-| `git-schedule show ID` | View scheduled diff |
-| `git-schedule edit ID [options]` | Edit message or time |
-| `git-schedule cancel ID` | Cancel a schedule |
-| `git-schedule undo` | Cancel the most recent schedule |
-| `git-schedule clear` | Cancel all pending schedules |
-| `git-schedule failed` | List failed/missed commits |
-| `git-schedule retry ID` | Re-stage files from failed commit |
-| `git-schedule stats` | Show history of completed commits |
-| `git-schedule daemon start` | Start daemon manually |
-| `git-schedule daemon stop` | Stop daemon |
-| `git-schedule daemon restart` | Restart daemon |
+| `git schedule "msg" --in TIME` | Schedule commit in relative time |
+| `git schedule "msg" --at TIME` | Schedule commit at absolute time |
+| `git schedule "msg" --in TIME --push` | Schedule commit + push |
+| `git schedule now "msg"` | Commit immediately |
+| `git schedule list` | List pending schedules |
+| `git schedule status` | Show daemon status and next commit |
+| `git schedule show ID` | View scheduled diff |
+| `git schedule edit ID [options]` | Edit message or time |
+| `git schedule cancel ID` | Cancel a schedule |
+| `git schedule undo` | Cancel the most recent schedule |
+| `git schedule clear` | Cancel all pending schedules |
+| `git schedule failed` | List failed/missed commits |
+| `git schedule retry ID` | Re-stage files from failed commit |
+| `git schedule stats` | Show history of completed commits |
+| `git schedule daemon start` | Start daemon manually |
+| `git schedule daemon stop` | Stop daemon |
+| `git schedule daemon restart` | Restart daemon |
 
 ### Time Formats
 
@@ -349,7 +349,7 @@ All data is stored in:
 ### "Daemon not running"
 
 ```bash
-git-schedule daemon start
+git schedule daemon start
 ```
 
 ### "Queue full"
@@ -357,15 +357,15 @@ git-schedule daemon start
 You have 10 pending schedules. Cancel some:
 
 ```bash
-git-schedule list
-git-schedule cancel <id>
+git schedule list
+git schedule cancel <id>
 ```
 
 ### "Branch mismatch"
 
 You scheduled a commit on `main` but switched to `feature`. Either:
 - Switch back to `main` and wait for the commit
-- Cancel the schedule: `git-schedule cancel <id>`
+- Cancel the schedule: `git schedule cancel <id>`
 
 ### View Logs
 
@@ -377,11 +377,11 @@ cat ~/.git-schedule/logs/daemon.log.*
 
 ```bash
 # macOS/Linux
-git-schedule daemon stop
+git schedule daemon stop
 rm -rf ~/.git-schedule
 
 # Windows (PowerShell)
-git-schedule daemon stop
+git schedule daemon stop
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\git-schedule"
 ```
 

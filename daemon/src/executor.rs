@@ -32,8 +32,19 @@ pub async fn execute_schedule(schedule: &Schedule) -> Result<()> {
         ));
     }
 
+    // Stash any working changes first to avoid conflicts
+    let had_stash = stash_changes(&schedule.repo_path)?;
+
     // Apply the patch
-    apply_patch(&schedule.repo_path, &schedule.patch_file)?;
+    let apply_result = apply_patch_internal(&schedule.repo_path, &schedule.patch_file);
+
+    if let Err(e) = apply_result {
+        // Restore stash if we had one
+        if had_stash {
+            let _ = stash_pop(&schedule.repo_path);
+        }
+        return Err(e);
+    }
 
     // Create the commit
     let commit_hash = create_commit(&schedule.repo_path, &schedule.message)?;
@@ -43,6 +54,11 @@ pub async fn execute_schedule(schedule: &Schedule) -> Result<()> {
     if schedule.push_after {
         push(&schedule.repo_path)?;
         info!("Pushed to remote");
+    }
+
+    // Restore stash if we had one
+    if had_stash {
+        stash_pop(&schedule.repo_path)?;
     }
 
     // Clean up patch file
@@ -67,8 +83,8 @@ fn get_current_branch(repo_path: &std::path::Path) -> Result<String> {
     }
 }
 
-/// Apply a patch file to the repository
-fn apply_patch(repo_path: &std::path::Path, patch_path: &std::path::Path) -> Result<()> {
+/// Apply a patch file to the repository (internal, called after stash)
+fn apply_patch_internal(repo_path: &std::path::Path, patch_path: &std::path::Path) -> Result<()> {
     let output = Command::new("git")
         .current_dir(repo_path)
         .args(["apply", "--index"])
@@ -83,6 +99,35 @@ fn apply_patch(repo_path: &std::path::Path, patch_path: &std::path::Path) -> Res
         let _ = restore_patch_to_staging(repo_path, patch_path);
 
         return Err(anyhow!("git apply failed: {}", stderr.trim()));
+    }
+
+    Ok(())
+}
+
+/// Stash working directory changes, returns true if there was something to stash
+fn stash_changes(repo_path: &std::path::Path) -> Result<bool> {
+    let output = Command::new("git")
+        .current_dir(repo_path)
+        .args(["stash", "push", "-m", "git-schedule-temp"])
+        .output()
+        .context("Failed to run git stash")?;
+
+    // Check if anything was stashed
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(!stdout.contains("No local changes to save"))
+}
+
+/// Pop the stash after commit
+fn stash_pop(repo_path: &std::path::Path) -> Result<()> {
+    let output = Command::new("git")
+        .current_dir(repo_path)
+        .args(["stash", "pop"])
+        .output()
+        .context("Failed to run git stash pop")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        warn!("git stash pop had issues: {}", stderr.trim());
     }
 
     Ok(())
