@@ -4,8 +4,8 @@ use std::path::PathBuf;
 /// Maximum number of scheduled commits allowed
 pub const MAX_SCHEDULES: usize = 10;
 
-/// Maximum schedule time in hours
-pub const MAX_SCHEDULE_HOURS: i64 = 24;
+/// Maximum schedule time in days
+pub const MAX_SCHEDULE_DAYS: i64 = 7;
 
 /// TCP port for Windows IPC (Unix uses socket file)
 #[cfg(windows)]
