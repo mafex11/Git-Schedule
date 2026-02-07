@@ -160,6 +160,10 @@ pub fn create_remote_schedule(
     let id = &id[..8];
     let temp_branch = format!("git-schedule/{}", id);
 
+    // Stash any working tree changes so the tree is clean for applying the patch
+    let stash_output = run_git(repo_path, &["stash", "push", "-m", "git-schedule-remote-temp"])?;
+    let had_stash = !stash_output.contains("No local changes to save");
+
     // Create temp branch from current HEAD
     run_git(repo_path, &["checkout", "-b", &temp_branch])?;
 
@@ -167,9 +171,9 @@ pub fn create_remote_schedule(
     let apply_result = run_git(repo_path, &["apply", "--index", &patch_path.to_string_lossy()]);
 
     if let Err(e) = apply_result {
-        // Clean up: go back to original branch and delete temp
         let _ = run_git(repo_path, &["checkout", branch]);
         let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
+        if had_stash { let _ = run_git(repo_path, &["stash", "pop"]); }
         return Err(e).context("Failed to apply patch on temp branch");
     }
 
@@ -178,6 +182,7 @@ pub fn create_remote_schedule(
     if let Err(e) = commit_result {
         let _ = run_git(repo_path, &["checkout", branch]);
         let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
+        if had_stash { let _ = run_git(repo_path, &["stash", "pop"]); }
         return Err(e).context("Failed to create commit on temp branch");
     }
 
@@ -198,6 +203,7 @@ pub fn create_remote_schedule(
     if let Err(e) = tag_result {
         let _ = run_git(repo_path, &["checkout", branch]);
         let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
+        if had_stash { let _ = run_git(repo_path, &["stash", "pop"]); }
         return Err(e).context("Failed to create metadata tag");
     }
 
@@ -211,12 +217,18 @@ pub fn create_remote_schedule(
         let _ = run_git(repo_path, &["checkout", branch]);
         let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
         let _ = run_git(repo_path, &["tag", "-d", &tag_name]);
+        if had_stash { let _ = run_git(repo_path, &["stash", "pop"]); }
         return Err(e).context("Failed to push to remote");
     }
 
     // Switch back to original branch and clean up local temp branch
     run_git(repo_path, &["checkout", branch])?;
     let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
+
+    // Restore stashed working tree changes
+    if had_stash {
+        let _ = run_git(repo_path, &["stash", "pop"]);
+    }
 
     // Display confirmation
     println!();
