@@ -18,9 +18,11 @@ git schedule "feat: add awesome feature" --in 2h
 
 ## Features
 
-- Schedule commits up to 24 hours in advance
-- Relative time (`--in 2h`, `--in 30m`) or absolute time (`--at 9am`, `--at 14:00`)
+- Schedule commits up to 7 days in advance
+- Relative time (`--in 2h`, `--in 30m`, `--in 3d`) or absolute time (`--at 9am`, `--at monday 9am`)
+- Day and weekday support (`--in 2d12h`, `--at friday 3pm`)
 - Optional auto-push after commit (`--push`)
+- **Remote scheduling via GitHub Actions** (`--remote`) - runs even when your PC is off
 - View, edit, and cancel scheduled commits
 - Interactive file selection if nothing is staged
 - System notifications on success/failure
@@ -139,6 +141,9 @@ git schedule "feat: add new feature" --in 2h
 git schedule "commit message" --in 30m      # in 30 minutes
 git schedule "commit message" --in 2h       # in 2 hours
 git schedule "commit message" --in 1h30m    # in 1 hour 30 minutes
+git schedule "commit message" --in 2d       # in 2 days
+git schedule "commit message" --in 1d12h    # in 1 day 12 hours
+git schedule "commit message" --in 3d6h30m  # in 3 days 6 hours 30 minutes
 
 # Absolute time
 git schedule "commit message" --at 9am      # at 9:00 AM today (or tomorrow if passed)
@@ -146,9 +151,30 @@ git schedule "commit message" --at 9:30am   # at 9:30 AM
 git schedule "commit message" --at 14:00    # at 2:00 PM (24-hour format)
 git schedule "commit message" --at "2:30 PM"
 
+# Weekday scheduling
+git schedule "commit message" --at "monday 9am"    # next Monday at 9 AM
+git schedule "commit message" --at "fri 3:30pm"     # next Friday at 3:30 PM
+
 # With auto-push
 git schedule "feat: ready to ship" --in 1h --push
 ```
+
+### Remote Scheduling (PC can be off)
+
+Schedule commits via GitHub Actions so they execute even when your machine is off:
+
+```bash
+# Schedule remotely - commit happens on GitHub Actions
+git schedule "feat: deploy update" --in 6h --remote
+
+# Works with all time formats
+git schedule "fix: patch" --at "monday 9am" --remote
+
+# Cancel a remote schedule
+git schedule cancel a1b2c3d4 --remote
+```
+
+On first use, `--remote` automatically adds a GitHub Actions workflow to your repo. The workflow runs every 5 minutes, checks for due schedules, and cherry-picks your commits to the target branch using your git identity. The workflow auto-disables when no schedules remain and re-enables when you schedule something new.
 
 ### View Scheduled Commits
 
@@ -298,7 +324,7 @@ All data is stored in:
 
 ### Limits
 
-- **Maximum schedule time:** 24 hours
+- **Maximum schedule time:** 7 days
 - **Maximum pending schedules:** 10
 
 ### What Happens If...
@@ -306,6 +332,7 @@ All data is stored in:
 | Scenario | Behavior |
 |----------|----------|
 | Machine sleeps through scheduled time | Commit marked as "missed", moved to failed queue |
+| Machine is off (with `--remote`) | GitHub Actions executes the commit on schedule |
 | Branch is deleted before commit | Commit fails, moved to failed queue with error |
 | You're on a different branch | Commit fails (branch mismatch), moved to failed queue |
 | Merge conflict when applying patch | Commit fails, files re-staged for manual resolution |
@@ -318,6 +345,8 @@ All data is stored in:
 | `git schedule "msg" --in TIME` | Schedule commit in relative time |
 | `git schedule "msg" --at TIME` | Schedule commit at absolute time |
 | `git schedule "msg" --in TIME --push` | Schedule commit + push |
+| `git schedule "msg" --in TIME --remote` | Schedule via GitHub Actions (PC can be off) |
+| `git schedule cancel ID --remote` | Cancel a remote schedule |
 | `git schedule now "msg"` | Commit immediately |
 | `git schedule list` | List pending schedules |
 | `git schedule status` | Show daemon status and next commit |
@@ -339,10 +368,14 @@ All data is stored in:
 - `30m` - 30 minutes
 - `2h` - 2 hours
 - `1h30m` - 1 hour 30 minutes
+- `2d` - 2 days
+- `1d12h` - 1 day 12 hours
+- `3d6h30m` - 3 days 6 hours 30 minutes
 
 **Absolute (`--at`):**
 - `9am`, `9:30am`, `9:30 AM` - 12-hour format
 - `14:00`, `9:30` - 24-hour format
+- `monday 9am`, `fri 3:30pm` - weekday + time (next occurrence)
 
 ## Troubleshooting
 
@@ -397,6 +430,7 @@ git-schedule/
 │       ├── commands/    # Command implementations
 │       ├── git.rs       # Git operations
 │       ├── client.rs    # Daemon communication
+│       ├── remote.rs    # Remote scheduling (GitHub Actions)
 │       └── time_parser.rs
 ├── daemon/              # Background daemon
 │   └── src/
