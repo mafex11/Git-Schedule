@@ -225,9 +225,9 @@ pub fn create_remote_schedule(
     run_git(repo_path, &["checkout", branch])?;
     let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
 
-    // Restore stashed working tree changes
+    // Drop the stash — changes are captured on the remote branch
     if had_stash {
-        let _ = run_git(repo_path, &["stash", "pop"]);
+        let _ = run_git(repo_path, &["stash", "drop"]);
     }
 
     // Display confirmation
