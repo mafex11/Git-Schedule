@@ -320,6 +320,32 @@ All data is stored in:
 # (Windows uses TCP localhost:7392 for IPC instead of socket)
 ```
 
+## Updating
+
+git-schedule automatically checks for new versions every 24 hours and notifies you when an update is available.
+
+### macOS (Homebrew)
+
+```bash
+brew upgrade mafex11/tap/git-schedule
+```
+
+### Linux
+
+Download the latest release from [GitHub Releases](https://github.com/mafex11/Git-Schedule/releases/latest).
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/mafex11/git-schedule/main/install.ps1 | iex
+```
+
+### Verify
+
+```bash
+git schedule --version
+```
+
 ## Configuration
 
 ### Limits
