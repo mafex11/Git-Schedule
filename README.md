@@ -449,7 +449,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Acknowledgments
+## Acknowledgment
 
 - Built with [Rust](https://www.rust-lang.org/)
 - CLI parsing by [clap](https://github.com/clap-rs/clap)

@@ -3,7 +3,7 @@ resolver = "2"
 members = ["shared", "cli", "daemon"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.8"
 edition = "2021"
 authors = ["mafex"]
 license = "MIT"
