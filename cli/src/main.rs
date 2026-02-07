@@ -2,6 +2,7 @@ mod client;
 mod commands;
 mod git;
 mod interactive;
+mod remote;
 mod time_parser;
 mod update;
 
@@ -31,6 +32,10 @@ struct Cli {
     /// Push to remote after commit
     #[arg(long, short)]
     push: bool,
+
+    /// Schedule remotely via GitHub Actions (runs even when PC is off)
+    #[arg(long)]
+    remote: bool,
 }
 
 #[derive(Subcommand)]
@@ -49,6 +54,10 @@ enum Commands {
     Cancel {
         /// Schedule ID to cancel
         id: String,
+
+        /// Cancel a remote schedule (deletes remote branch and tag)
+        #[arg(long)]
+        remote: bool,
     },
 
     /// Edit a scheduled commit's message or time
@@ -136,7 +145,7 @@ async fn main() -> Result<()> {
             }
         }
         Some(Commands::Status) => commands::status::run().await,
-        Some(Commands::Cancel { id }) => commands::cancel::run(&id).await,
+        Some(Commands::Cancel { id, remote }) => commands::cancel::run(&id, remote).await,
         Some(Commands::Edit {
             id,
             message,
@@ -159,7 +168,7 @@ async fn main() -> Result<()> {
         // Direct schedule command: git-schedule "message" --in 2h
         None => {
             if let Some(message) = cli.message {
-                commands::schedule::run(message, cli.in_time, cli.at_time, cli.push).await
+                commands::schedule::run(message, cli.in_time, cli.at_time, cli.push, cli.remote).await
             } else {
                 // No message provided, show help
                 use clap::CommandFactory;

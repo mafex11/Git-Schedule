@@ -6,6 +6,7 @@ use std::env;
 use crate::client::{ensure_daemon_running, Client};
 use crate::git::GitRepo;
 use crate::interactive::select_files_to_stage;
+use crate::remote;
 use crate::time_parser::{format_absolute, format_relative, parse_absolute, parse_relative};
 
 pub async fn run(
@@ -13,6 +14,7 @@ pub async fn run(
     in_time: Option<String>,
     at_time: Option<String>,
     push: bool,
+    remote: bool,
 ) -> Result<()> {
     // Parse the scheduled time
     let scheduled_at = match (in_time, at_time) {
@@ -36,7 +38,11 @@ pub async fn run(
         println!("{} Staged {} file(s)", style("✓").green(), selected.len());
     }
 
-    // Ensure daemon is running
+    if remote {
+        return run_remote(&repo, &repo_path, &branch, &message, scheduled_at).await;
+    }
+
+    // Local daemon path
     ensure_daemon_running().await?;
 
     // Connect to daemon and check queue limit
@@ -103,6 +109,45 @@ pub async fn run(
         "{}",
         style("Run 'git-schedule list' to see all scheduled commits").dim()
     );
+
+    Ok(())
+}
+
+async fn run_remote(
+    repo: &GitRepo,
+    repo_path: &std::path::Path,
+    branch: &str,
+    message: &str,
+    scheduled_at: chrono::DateTime<chrono::Utc>,
+) -> Result<()> {
+    // Create patch from staged changes
+    let patch_content = repo.create_patch_from_staged()?;
+
+    // Save patch to temp file
+    let patches_dir = config::patches_dir()?;
+    std::fs::create_dir_all(&patches_dir)?;
+    let patch_file = patches_dir.join(format!("{}.patch", uuid::Uuid::new_v4()));
+    std::fs::write(&patch_file, &patch_content)?;
+
+    // Unstage files (like after a real commit)
+    repo.unstage_all()?;
+
+    // Ensure workflow exists first (commits to current branch)
+    remote::ensure_workflow_exists(repo_path, branch)?;
+
+    // Create remote schedule (branch + tag + push)
+    let result = remote::create_remote_schedule(
+        repo_path,
+        branch,
+        message,
+        scheduled_at,
+        &patch_file,
+    );
+
+    // Clean up local patch file regardless of result
+    let _ = std::fs::remove_file(&patch_file);
+
+    result?;
 
     Ok(())
 }

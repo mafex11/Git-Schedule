@@ -1,9 +1,16 @@
 use anyhow::Result;
 use console::style;
+use std::env;
 
 use crate::client::{ensure_daemon_running, Client};
+use crate::remote;
 
-pub async fn run(id: &str) -> Result<()> {
+pub async fn run(id: &str, remote: bool) -> Result<()> {
+    if remote {
+        let repo_path = env::current_dir()?;
+        return remote::cancel_remote_schedule(&repo_path, id);
+    }
+
     ensure_daemon_running().await?;
 
     let mut client = Client::connect().await?;
