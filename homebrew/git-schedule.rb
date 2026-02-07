@@ -4,17 +4,17 @@
 class GitSchedule < Formula
   desc "Schedule git commits for later - like delayed send for your code"
   homepage "https://github.com/mafex11/Git-Schedule"
-  version "0.1.4"
+  version "0.1.5"
   license "MIT"
 
   on_macos do
     url "https://github.com/mafex11/Git-Schedule/releases/download/v#{version}/git-schedule-macos-aarch64.tar.gz"
-    sha256 "8f7a562d7980bab9a57ee716f6df1ee12bc5cbeda6661482255498e26a41654b"
+    sha256 "89036cb766b4d76f177cd34c6868aa6a12f4ffc786f3b8528caabbe82868eb42"
   end
 
   on_linux do
     url "https://github.com/mafex11/Git-Schedule/releases/download/v#{version}/git-schedule-linux-x86_64.tar.gz"
-    sha256 "b25039a59bf8e98c65a23b90c1a20fac9b66a1ba9cf045eab496131c4129c8bc"
+    sha256 "65ea1e437302a3f3981167c788b343e59c7c720ba3a58ac65e276ebbc17a371a"
   end
 
   def install
