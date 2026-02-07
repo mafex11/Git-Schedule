@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   execute:
@@ -32,6 +33,8 @@ jobs:
           git fetch origin 'refs/heads/git-schedule/*:refs/remotes/origin/git-schedule/*'
 
       - name: Execute due schedules
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           executed=0
           failed=0
@@ -92,6 +95,13 @@ jobs:
 
           echo ""
           echo "Done: $executed executed, $failed failed"
+
+          # Auto-disable workflow if no schedules remain
+          remaining=$(git tag -l 'git-schedule-meta/*' | wc -l)
+          if [ "$remaining" -eq 0 ]; then
+            echo "No remaining schedules, disabling workflow"
+            gh workflow disable "Git Schedule Remote"
+          fi
 "#;
 
 /// Get the user's git name and email from config
@@ -206,6 +216,12 @@ pub fn create_remote_schedule(
         if had_stash { let _ = run_git(repo_path, &["stash", "pop"]); }
         return Err(e).context("Failed to create metadata tag");
     }
+
+    // Enable the workflow in case it was auto-disabled
+    let _ = Command::new("gh")
+        .current_dir(repo_path)
+        .args(["workflow", "enable", "Git Schedule Remote"])
+        .output();
 
     // Push branch and tag
     let push_result = run_git(
