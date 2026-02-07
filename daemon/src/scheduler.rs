@@ -44,8 +44,12 @@ pub async fn run(state: SharedState) -> Result<()> {
                 }
             }
 
-            // Execute the commit
-            let result = executor::execute_schedule(&schedule).await;
+            // Execute the commit or PR
+            let result = if schedule.is_pr() {
+                executor::execute_pr_schedule(&schedule).await
+            } else {
+                executor::execute_schedule(&schedule).await
+            };
 
             // Update status based on result
             {

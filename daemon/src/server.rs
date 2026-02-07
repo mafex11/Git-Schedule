@@ -326,5 +326,45 @@ async fn handle_request(request: Request, state: SharedState) -> Response {
                 .collect();
             Response::Schedules(completed)
         }
+
+        Request::CreatePRSchedule {
+            title,
+            scheduled_at,
+            repo_path,
+            branch,
+            patch_file,
+            pr_target,
+            pr_body,
+            pr_draft,
+            pr_branch,
+        } => {
+            let schedule = Schedule::new_pr(
+                title,
+                scheduled_at,
+                repo_path,
+                branch,
+                patch_file,
+                pr_target,
+                pr_body,
+                pr_draft,
+                pr_branch,
+            );
+
+            let mut state = state.write().await;
+
+            if state.storage.count_pending() >= config::MAX_SCHEDULES {
+                return Response::error(format!(
+                    "Queue full ({} schedules). Cancel some first.",
+                    config::MAX_SCHEDULES
+                ));
+            }
+
+            if let Err(e) = state.storage.add(schedule.clone()) {
+                return Response::error(format!("Failed to save schedule: {}", e));
+            }
+
+            info!("Created PR schedule {}: {}", schedule.id, schedule.message);
+            Response::Created(schedule)
+        }
     }
 }

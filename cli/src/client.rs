@@ -239,6 +239,38 @@ impl Client {
         }
     }
 
+    /// Create a new scheduled PR
+    pub async fn create_pr_schedule(
+        &mut self,
+        title: String,
+        scheduled_at: DateTime<Utc>,
+        repo_path: PathBuf,
+        branch: String,
+        patch_file: PathBuf,
+        pr_target: String,
+        pr_body: Option<String>,
+        pr_draft: bool,
+        pr_branch: Option<String>,
+    ) -> Result<Schedule> {
+        let req = Request::CreatePRSchedule {
+            title,
+            scheduled_at,
+            repo_path,
+            branch,
+            patch_file,
+            pr_target,
+            pr_body,
+            pr_draft,
+            pr_branch,
+        };
+
+        match self.request(req).await? {
+            Response::Created(schedule) => Ok(schedule),
+            Response::Error { message } => Err(anyhow!(message)),
+            _ => Err(anyhow!("Unexpected response")),
+        }
+    }
+
     /// Get completed schedules (for stats)
     pub async fn get_completed(&mut self, limit: usize) -> Result<Vec<Schedule>> {
         let req = Request::GetCompleted { limit };

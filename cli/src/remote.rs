@@ -18,6 +18,7 @@ on:
 permissions:
   contents: write
   actions: write
+  pull-requests: write
 
 jobs:
   execute:
@@ -75,21 +76,74 @@ jobs:
               continue
             fi
 
-            # Cherry-pick to target branch
-            git checkout "$target" 2>/dev/null || git checkout -b "$target" "origin/$target"
-            git pull origin "$target" --ff-only 2>/dev/null || true
+            schedule_type=$(echo "$metadata" | jq -r '.type // "commit"')
 
-            if git cherry-pick "$commit"; then
-              git push origin "$target"
-              git push origin --delete "$branch" 2>/dev/null || true
-              git tag -d "$tag" 2>/dev/null || true
-              git push origin --delete "refs/tags/$tag" 2>/dev/null || true
-              echo "Successfully executed schedule $id"
-              executed=$((executed + 1))
+            if [ "$schedule_type" = "pr" ]; then
+              # PR schedule: cherry-pick to a PR branch and create PR
+              pr_target=$(echo "$metadata" | jq -r '.pr_target')
+              pr_body=$(echo "$metadata" | jq -r '.pr_body // ""')
+              pr_draft=$(echo "$metadata" | jq -r '.pr_draft // false')
+              pr_branch_name=$(echo "$metadata" | jq -r '.pr_branch // empty')
+              pr_title=$(echo "$metadata" | jq -r '.pr_title // "Scheduled PR"')
+
+              # Use specified branch name or generate one
+              if [ -n "$pr_branch_name" ]; then
+                head_branch="$pr_branch_name"
+              else
+                head_branch="$target"
+              fi
+
+              # Create the PR branch from target
+              git checkout "$pr_target" 2>/dev/null || git checkout -b "$pr_target" "origin/$pr_target"
+              git pull origin "$pr_target" --ff-only 2>/dev/null || true
+              git checkout -b "$head_branch" 2>/dev/null || git checkout "$head_branch"
+
+              if git cherry-pick "$commit"; then
+                git push origin "$head_branch" -u
+
+                # Build gh pr create command
+                gh_args="--base $pr_target --head $head_branch --title \"$pr_title\""
+                if [ -n "$pr_body" ]; then
+                  gh_args="$gh_args --body \"$pr_body\""
+                else
+                  gh_args="$gh_args --body \"\""
+                fi
+                if [ "$pr_draft" = "true" ]; then
+                  gh_args="$gh_args --draft"
+                fi
+
+                eval "gh pr create $gh_args" && {
+                  git push origin --delete "$branch" 2>/dev/null || true
+                  git tag -d "$tag" 2>/dev/null || true
+                  git push origin --delete "refs/tags/$tag" 2>/dev/null || true
+                  echo "Successfully created PR for schedule $id"
+                  executed=$((executed + 1))
+                } || {
+                  echo "Failed to create PR for schedule $id"
+                  failed=$((failed + 1))
+                }
+              else
+                git cherry-pick --abort 2>/dev/null || true
+                echo "Failed to cherry-pick schedule $id for PR (likely a conflict)"
+                failed=$((failed + 1))
+              fi
             else
-              git cherry-pick --abort 2>/dev/null || true
-              echo "Failed to cherry-pick schedule $id (likely a conflict)"
-              failed=$((failed + 1))
+              # Commit schedule: cherry-pick directly to target
+              git checkout "$target" 2>/dev/null || git checkout -b "$target" "origin/$target"
+              git pull origin "$target" --ff-only 2>/dev/null || true
+
+              if git cherry-pick "$commit"; then
+                git push origin "$target"
+                git push origin --delete "$branch" 2>/dev/null || true
+                git tag -d "$tag" 2>/dev/null || true
+                git push origin --delete "refs/tags/$tag" 2>/dev/null || true
+                echo "Successfully executed schedule $id"
+                executed=$((executed + 1))
+              else
+                git cherry-pick --abort 2>/dev/null || true
+                echo "Failed to cherry-pick schedule $id (likely a conflict)"
+                failed=$((failed + 1))
+              fi
             fi
           done
 
@@ -304,6 +358,141 @@ pub fn ensure_workflow_exists(repo_path: &Path, branch: &str) -> Result<()> {
     );
 
     Ok(())
+}
+
+/// Create a remote PR schedule: branch + tag + push
+pub fn create_remote_pr_schedule(
+    repo_path: &Path,
+    branch: &str,
+    title: &str,
+    pr_target: &str,
+    pr_branch: Option<String>,
+    pr_body: Option<String>,
+    pr_draft: bool,
+    scheduled_at: DateTime<Utc>,
+    patch_path: &Path,
+) -> Result<String> {
+    if !has_remote(repo_path)? {
+        return Err(anyhow!(
+            "No 'origin' remote found. Add one with: git remote add origin <url>"
+        ));
+    }
+
+    let (author_name, author_email) = get_git_user(repo_path)?;
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let id = &id[..8];
+    let temp_branch = format!("git-schedule/{}", id);
+
+    // Stash working tree changes
+    let stash_output = run_git(repo_path, &["stash", "push", "-m", "git-schedule-remote-temp"])?;
+    let had_stash = !stash_output.contains("No local changes to save");
+
+    // Create temp branch from current HEAD
+    run_git(repo_path, &["checkout", "-b", &temp_branch])?;
+
+    // Apply patch and commit
+    let apply_result = run_git(repo_path, &["apply", "--index", &patch_path.to_string_lossy()]);
+
+    if let Err(e) = apply_result {
+        let _ = run_git(repo_path, &["checkout", branch]);
+        let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
+        if had_stash { let _ = run_git(repo_path, &["stash", "pop"]); }
+        return Err(e).context("Failed to apply patch on temp branch");
+    }
+
+    let commit_result = run_git(repo_path, &["commit", "-m", title]);
+
+    if let Err(e) = commit_result {
+        let _ = run_git(repo_path, &["checkout", branch]);
+        let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
+        if had_stash { let _ = run_git(repo_path, &["stash", "pop"]); }
+        return Err(e).context("Failed to create commit on temp branch");
+    }
+
+    // Create annotated tag with PR metadata
+    let metadata = serde_json::json!({
+        "type": "pr",
+        "target_branch": branch,
+        "scheduled_at": scheduled_at.to_rfc3339(),
+        "author_name": author_name,
+        "author_email": author_email,
+        "pr_target": pr_target,
+        "pr_title": title,
+        "pr_body": pr_body.as_deref().unwrap_or(""),
+        "pr_draft": pr_draft,
+        "pr_branch": pr_branch.as_deref().unwrap_or(branch),
+    });
+    let tag_name = format!("git-schedule-meta/{}", id);
+
+    let tag_result = run_git(
+        repo_path,
+        &["tag", "-a", &tag_name, "-m", &metadata.to_string()],
+    );
+
+    if let Err(e) = tag_result {
+        let _ = run_git(repo_path, &["checkout", branch]);
+        let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
+        if had_stash { let _ = run_git(repo_path, &["stash", "pop"]); }
+        return Err(e).context("Failed to create metadata tag");
+    }
+
+    // Enable workflow
+    let _ = Command::new("gh")
+        .current_dir(repo_path)
+        .args(["workflow", "enable", "Git Schedule Remote"])
+        .output();
+
+    // Push branch and tag
+    let push_result = run_git(
+        repo_path,
+        &["push", "origin", &temp_branch, &tag_name],
+    );
+
+    if let Err(e) = push_result {
+        let _ = run_git(repo_path, &["checkout", branch]);
+        let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
+        let _ = run_git(repo_path, &["tag", "-d", &tag_name]);
+        if had_stash { let _ = run_git(repo_path, &["stash", "pop"]); }
+        return Err(e).context("Failed to push to remote");
+    }
+
+    // Switch back and clean up
+    run_git(repo_path, &["checkout", branch])?;
+    let _ = run_git(repo_path, &["branch", "-D", &temp_branch]);
+
+    if had_stash {
+        let _ = run_git(repo_path, &["stash", "drop"]);
+    }
+
+    // Display confirmation
+    println!();
+    println!(
+        "{} Scheduled remote PR for {} (in {})",
+        style("✓").green().bold(),
+        style(format_absolute(scheduled_at)).cyan(),
+        format_relative(scheduled_at)
+    );
+    println!();
+    println!("  {} {}", style("ID:").dim(), id);
+    println!("  {} {}", style("Title:").dim(), truncate(title, 50));
+    println!(
+        "  {} {} → {}",
+        style("Branches:").dim(),
+        pr_branch.as_deref().unwrap_or(branch),
+        pr_target
+    );
+    if pr_draft {
+        println!("  {} Yes", style("Draft:").dim());
+    }
+    println!("  {} remote (GitHub Actions)", style("Mode:").dim());
+    println!();
+    println!(
+        "{}",
+        style("GitHub Actions will create the PR within ~5 minutes of the scheduled time.").dim()
+    );
+
+    Ok(id.to_string())
 }
 
 /// Cancel a remote schedule by deleting the remote branch and tag

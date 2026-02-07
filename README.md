@@ -23,6 +23,7 @@ git schedule "feat: add awesome feature" --in 2h
 - Day and weekday support (`--in 2d12h`, `--at friday 3pm`)
 - Optional auto-push after commit (`--push`)
 - **Remote scheduling via GitHub Actions** (`--remote`) - runs even when your PC is off
+- **Scheduled Pull Requests** (`git schedule pr`) - create PRs on a timer
 - View, edit, and cancel scheduled commits
 - Interactive file selection if nothing is staged
 - System notifications on success/failure
@@ -175,6 +176,38 @@ git schedule cancel a1b2c3d4 --remote
 ```
 
 On first use, `--remote` automatically adds a GitHub Actions workflow to your repo. The workflow runs every 5 minutes, checks for due schedules, and cherry-picks your commits to the target branch using your git identity. The workflow auto-disables when no schedules remain and re-enables when you schedule something new.
+
+### Schedule a Pull Request
+
+Schedule PR creation with your staged changes:
+
+```bash
+# PR from current branch to dev
+git schedule pr "feat: add auth" --in 2h --to dev
+
+# PR with a new branch (created from current HEAD)
+git schedule pr "fix: login bug" --in 2h --to dev --branch fix/login-bug
+
+# With PR description
+git schedule pr "feat: auth" --in 2h --to dev --body "Adds OAuth2 support"
+
+# Draft PR
+git schedule pr "wip: refactor" --in 1d --to main --draft
+
+# Remote PR (works when PC is off)
+git schedule pr "feat: auth" --in 6h --to dev --remote
+
+# Works with all time formats
+git schedule pr "fix: hotfix" --at "monday 9am" --to main --remote
+```
+
+The `pr` command captures your staged changes, then at the scheduled time:
+1. Creates a new branch (if `--branch` is specified) or uses the current branch
+2. Applies your changes and commits
+3. Pushes the branch
+4. Opens a PR to the target branch using `gh` CLI
+
+Requires [GitHub CLI](https://cli.github.com/) (`gh`) to be installed and authenticated.
 
 ### View Scheduled Commits
 
@@ -372,6 +405,11 @@ git schedule --version
 | `git schedule "msg" --at TIME` | Schedule commit at absolute time |
 | `git schedule "msg" --in TIME --push` | Schedule commit + push |
 | `git schedule "msg" --in TIME --remote` | Schedule via GitHub Actions (PC can be off) |
+| `git schedule pr "title" --in TIME --to BRANCH` | Schedule a Pull Request |
+| `git schedule pr "title" --to BRANCH --branch NAME` | Schedule PR with new branch |
+| `git schedule pr "title" --to BRANCH --body "desc"` | Schedule PR with description |
+| `git schedule pr "title" --to BRANCH --draft` | Schedule a draft PR |
+| `git schedule pr "title" --to BRANCH --remote` | Schedule PR via GitHub Actions |
 | `git schedule cancel ID --remote` | Cancel a remote schedule |
 | `git schedule now "msg"` | Commit immediately |
 | `git schedule list` | List pending schedules |

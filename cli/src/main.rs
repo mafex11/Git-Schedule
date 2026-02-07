@@ -117,6 +117,40 @@ enum Commands {
 
     /// Show history of completed commits
     Stats,
+
+    /// Schedule a Pull Request
+    Pr {
+        /// PR title
+        title: String,
+
+        /// Target branch to merge into (e.g., dev, main)
+        #[arg(long)]
+        to: String,
+
+        /// Create a new branch with this name (default: use current branch)
+        #[arg(long)]
+        branch: Option<String>,
+
+        /// PR description
+        #[arg(long)]
+        body: Option<String>,
+
+        /// Create as draft PR
+        #[arg(long)]
+        draft: bool,
+
+        /// Schedule time (relative, e.g., "2h", "1d")
+        #[arg(long = "in")]
+        in_time: Option<String>,
+
+        /// Schedule time (absolute, e.g., "9am", "monday 3pm")
+        #[arg(long = "at")]
+        at_time: Option<String>,
+
+        /// Schedule remotely via GitHub Actions
+        #[arg(long)]
+        remote: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -164,6 +198,16 @@ async fn main() -> Result<()> {
         Some(Commands::Clear) => commands::clear::run().await,
         Some(Commands::Undo) => commands::undo::run().await,
         Some(Commands::Stats) => commands::stats::run().await,
+        Some(Commands::Pr {
+            title,
+            to,
+            branch,
+            body,
+            draft,
+            in_time,
+            at_time,
+            remote,
+        }) => commands::pr::run(title, to, branch, body, draft, in_time, at_time, remote).await,
 
         // Direct schedule command: git-schedule "message" --in 2h
         None => {

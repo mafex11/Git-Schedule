@@ -88,6 +88,18 @@ pub struct Schedule {
     pub status: ScheduleStatus,
     /// Error message if failed
     pub error: Option<String>,
+    /// Target branch for PR (if this is a PR schedule)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pr_target: Option<String>,
+    /// PR description body
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pr_body: Option<String>,
+    /// Whether to create as draft PR
+    #[serde(default)]
+    pub pr_draft: bool,
+    /// New branch name for PR (None = use current branch)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pr_branch: Option<String>,
 }
 
 impl Schedule {
@@ -110,7 +122,44 @@ impl Schedule {
             push_after,
             status: ScheduleStatus::Pending,
             error: None,
+            pr_target: None,
+            pr_body: None,
+            pr_draft: false,
+            pr_branch: None,
         }
+    }
+
+    pub fn new_pr(
+        title: String,
+        scheduled_at: DateTime<Utc>,
+        repo_path: PathBuf,
+        branch: String,
+        patch_file: PathBuf,
+        pr_target: String,
+        pr_body: Option<String>,
+        pr_draft: bool,
+        pr_branch: Option<String>,
+    ) -> Self {
+        Self {
+            id: ScheduleId::new(),
+            message: title,
+            scheduled_at,
+            created_at: Utc::now(),
+            repo_path,
+            branch,
+            patch_file,
+            push_after: true,
+            status: ScheduleStatus::Pending,
+            error: None,
+            pr_target: Some(pr_target),
+            pr_body,
+            pr_draft,
+            pr_branch,
+        }
+    }
+
+    pub fn is_pr(&self) -> bool {
+        self.pr_target.is_some()
     }
 
     pub fn is_due(&self) -> bool {

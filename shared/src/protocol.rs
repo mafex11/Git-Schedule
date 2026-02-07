@@ -53,6 +53,18 @@ pub enum Request {
         /// Maximum number of completed schedules to return
         limit: usize,
     },
+    /// Create a new scheduled PR
+    CreatePRSchedule {
+        title: String,
+        scheduled_at: DateTime<Utc>,
+        repo_path: PathBuf,
+        branch: String,
+        patch_file: PathBuf,
+        pr_target: String,
+        pr_body: Option<String>,
+        pr_draft: bool,
+        pr_branch: Option<String>,
+    },
 }
 
 /// Response from daemon to CLI

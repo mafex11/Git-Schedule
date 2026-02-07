@@ -184,6 +184,139 @@ fn create_commit(repo_path: &std::path::Path, message: &str) -> Result<String> {
     Ok(hash[..8].to_string())
 }
 
+/// Execute a scheduled PR
+pub async fn execute_pr_schedule(schedule: &Schedule) -> Result<()> {
+    // Verify repository exists
+    if !schedule.repo_path.exists() {
+        return Err(anyhow!(
+            "Repository not found: {}",
+            schedule.repo_path.display()
+        ));
+    }
+
+    // Verify patch file exists
+    if !schedule.patch_file.exists() {
+        return Err(anyhow!(
+            "Patch file not found: {}",
+            schedule.patch_file.display()
+        ));
+    }
+
+    let pr_target = schedule
+        .pr_target
+        .as_deref()
+        .ok_or_else(|| anyhow!("PR target branch not set"))?;
+
+    // Determine the working branch
+    let work_branch = if let Some(ref new_branch) = schedule.pr_branch {
+        // Create a new branch
+        let output = Command::new("git")
+            .current_dir(&schedule.repo_path)
+            .args(["checkout", "-b", new_branch])
+            .output()
+            .context("Failed to create new branch")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow!("Failed to create branch '{}': {}", new_branch, stderr.trim()));
+        }
+        new_branch.clone()
+    } else {
+        // Use current branch — verify it matches
+        let current = get_current_branch(&schedule.repo_path)?;
+        if current != schedule.branch {
+            return Err(anyhow!(
+                "Branch mismatch: expected '{}', found '{}'",
+                schedule.branch,
+                current
+            ));
+        }
+        schedule.branch.clone()
+    };
+
+    // Stash any working changes
+    let had_stash = stash_changes(&schedule.repo_path)?;
+
+    // Apply the patch
+    let apply_result = apply_patch_internal(&schedule.repo_path, &schedule.patch_file);
+
+    if let Err(e) = apply_result {
+        if had_stash {
+            let _ = stash_pop(&schedule.repo_path);
+        }
+        // Switch back if we created a new branch
+        if schedule.pr_branch.is_some() {
+            let _ = Command::new("git")
+                .current_dir(&schedule.repo_path)
+                .args(["checkout", &schedule.branch])
+                .output();
+        }
+        return Err(e);
+    }
+
+    // Create the commit
+    let commit_hash = create_commit(&schedule.repo_path, &schedule.message)?;
+    info!("Created commit {} for PR", commit_hash);
+
+    // Push the branch
+    push(&schedule.repo_path)?;
+    info!("Pushed branch {} to remote", work_branch);
+
+    // Create PR using gh CLI
+    let mut gh_args = vec![
+        "pr".to_string(),
+        "create".to_string(),
+        "--base".to_string(),
+        pr_target.to_string(),
+        "--head".to_string(),
+        work_branch.clone(),
+        "--title".to_string(),
+        schedule.message.clone(),
+    ];
+
+    if let Some(ref body) = schedule.pr_body {
+        gh_args.push("--body".to_string());
+        gh_args.push(body.clone());
+    } else {
+        gh_args.push("--body".to_string());
+        gh_args.push(String::new());
+    }
+
+    if schedule.pr_draft {
+        gh_args.push("--draft".to_string());
+    }
+
+    let gh_output = Command::new("gh")
+        .current_dir(&schedule.repo_path)
+        .args(&gh_args)
+        .output()
+        .context("Failed to run gh CLI. Is GitHub CLI installed?")?;
+
+    if !gh_output.status.success() {
+        let stderr = String::from_utf8_lossy(&gh_output.stderr);
+        // Restore stash before failing
+        if had_stash {
+            let _ = stash_pop(&schedule.repo_path);
+        }
+        return Err(anyhow!("gh pr create failed: {}", stderr.trim()));
+    }
+
+    let pr_url = String::from_utf8_lossy(&gh_output.stdout).trim().to_string();
+    info!("Created PR: {}", pr_url);
+
+    // Restore stash
+    if had_stash {
+        stash_pop(&schedule.repo_path)?;
+    }
+
+    // Clean up patch file
+    if let Err(e) = std::fs::remove_file(&schedule.patch_file) {
+        warn!("Failed to remove patch file: {}", e);
+    }
+
+    Ok(())
+}
+
 /// Push to remote
 fn push(repo_path: &std::path::Path) -> Result<()> {
     let output = Command::new("git")

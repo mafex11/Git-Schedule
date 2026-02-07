@@ -5,6 +5,7 @@ pub mod edit;
 pub mod failed;
 pub mod list;
 pub mod now;
+pub mod pr;
 pub mod retry;
 pub mod schedule;
 pub mod show;
