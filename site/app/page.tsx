@@ -1,4 +1,5 @@
-import { Terminal } from "@/components/Terminal";
+import { Nav } from "@/components/Nav";
+import { Hero } from "@/components/Hero";
 export default function Home() {
-  return <main style={{ padding: 40 }}><Terminal /></main>;
+  return <main><Nav /><Hero /></main>;
 }
