@@ -9,7 +9,7 @@ export function HowItWorks() {
   return (
     <section id="how" style={{ maxWidth: 860, margin: "0 auto", padding: "20px 24px 90px" }}>
       <p style={{ textAlign: "center", color: "var(--dim)", fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", margin: "0 0 6px" }}>how it works</p>
-      <h2 style={{ textAlign: "center", fontSize: 26, letterSpacing: "-0.6px", margin: "0 0 40px", fontWeight: 700 }}>Commit on your schedule, not your keyboard's.</h2>
+      <h2 style={{ textAlign: "center", fontSize: 26, letterSpacing: "-0.6px", margin: "0 0 40px", fontWeight: 700 }}>Commit on your schedule, not your keyboard&apos;s.</h2>
       <div style={{ display: "grid", gap: 14 }}>
         {STEPS.map((s) => (
           <div key={s.n} style={{ display: "flex", gap: 18, alignItems: "flex-start", background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px" }}>

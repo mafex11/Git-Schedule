@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useSyncExternalStore } from "react";
 import { DEMO_SEQUENCE, ASCII_ART, type Token, type DemoLine } from "@/lib/demo";
 import { initialTypingState, advance, visibleChars } from "@/lib/typing";
 
@@ -25,7 +25,14 @@ function Tokens({ tokens }: { tokens: Token[] }) {
   );
 }
 
-function prefersReducedMotion(): boolean {
+function subscribeReducedMotion(callback: () => void) {
+  if (typeof window === "undefined" || !window.matchMedia) return () => {};
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function getReducedMotionSnapshot() {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
@@ -35,13 +42,13 @@ export function Terminal() {
     (s: ReturnType<typeof initialTypingState>) => advance(s, DEMO_SEQUENCE),
     initialTypingState()
   );
-  const [reduced, setReduced] = useState(false);
+  const reduced = useSyncExternalStore(subscribeReducedMotion, getReducedMotionSnapshot, () => false);
 
   useEffect(() => {
-    if (prefersReducedMotion()) { setReduced(true); return; }
+    if (reduced) return;
     const id = setInterval(() => tick(), 55);
     return () => clearInterval(id);
-  }, []);
+  }, [reduced]);
 
   // Build the lines to render: all completed steps' lines for the current step,
   // plus the in-progress line trimmed to charCount.

@@ -13,7 +13,7 @@ describe("copyText", () => {
     expect(ok).toBe(true);
   });
   it("returns false when clipboard throws", async () => {
-    (navigator.clipboard.writeText as any).mockRejectedValueOnce(new Error("no"));
+    (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("no"));
     const ok = await copyText("x");
     expect(ok).toBe(false);
   });
