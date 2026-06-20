@@ -8,11 +8,15 @@ describe("demo data", () => {
   it("has at least 3 demo steps", () => {
     expect(DEMO_SEQUENCE.length).toBeGreaterThanOrEqual(3);
   });
-  it("every input line begins with a prompt token", () => {
+  it("every input line has a path token before its prompt token", () => {
     for (const step of DEMO_SEQUENCE) {
       for (const line of step.lines) {
         if (line.kind === "input") {
-          expect(line.tokens[0].cls).toBe("prompt");
+          const pathIdx = line.tokens.findIndex((t) => t.cls === "path");
+          const promptIdx = line.tokens.findIndex((t) => t.cls === "prompt");
+          expect(pathIdx).toBeGreaterThanOrEqual(0);
+          expect(promptIdx).toBeGreaterThanOrEqual(0);
+          expect(pathIdx).toBeLessThan(promptIdx);
         }
       }
     }

@@ -18,14 +18,14 @@ export const DEMO_SEQUENCE: DemoStep[] = [
   {
     lines: [
       { kind: "input", tokens: [
-        p("❯ ", "prompt"), p("~/my-project ", "path"), p("git add feature.rs", "plain"),
+        p("~/my-project ", "path"), p("❯ ", "prompt"), p("git add feature.rs", "plain"),
       ]},
     ],
   },
   {
     lines: [
       { kind: "input", tokens: [
-        p("❯ ", "prompt"), p("~/my-project ", "path"),
+        p("~/my-project ", "path"), p("❯ ", "prompt"),
         p("git ", "plain"), p("schedule ", "sub"),
         p('"feat: add awesome feature" ', "str"),
         p("--in ", "flag"), p("2h ", "plain"), p("--push", "flag"),
@@ -41,7 +41,7 @@ export const DEMO_SEQUENCE: DemoStep[] = [
   {
     lines: [
       { kind: "input", tokens: [
-        p("❯ ", "prompt"), p("~/my-project ", "path"),
+        p("~/my-project ", "path"), p("❯ ", "prompt"),
         p("git ", "plain"), p("schedule ", "sub"),
         p('"fix: patch" ', "str"),
         p("--at ", "flag"), p('"fri 9am" ', "plain"), p("--remote", "flag"),
@@ -54,7 +54,7 @@ export const DEMO_SEQUENCE: DemoStep[] = [
   {
     lines: [
       { kind: "input", tokens: [
-        p("❯ ", "prompt"), p("~/my-project ", "path"),
+        p("~/my-project ", "path"), p("❯ ", "prompt"),
         p("git ", "plain"), p("schedule ", "sub"), p("list", "plain"),
       ]},
       { kind: "output", tokens: [
